@@ -12,86 +12,87 @@ namespace DemoReflection
     {
         static void Main(string[] args)
         {
-            var list = new List<ParameterObjectMetaData>();
-            var obj = new CashOutflowBankDropdownOutputDto();
+            //var obj = new List<CashOutflowBankDropdownOutputDto>();
+            var obj = new List<CashOutflowBankDropdownOutputDto>();
 
             var type = obj.GetType();
 
-            var properties = type.GetProperties();
-
-
-
-            var genericTypes = properties.Where(x => x.PropertyType.IsGenericType && x.PropertyType.GetGenericTypeDefinition()
-                    == typeof(List<>));
-
-            GetListTypePropertyDetails(genericTypes);
-
-            var classTypes = properties.Where(x => !x.PropertyType.IsGenericType
-                                    && x.PropertyType.IsClass
-                                    && x.PropertyType != typeof(string)
-                                    && x.PropertyType != typeof(int)
-                                    && x.PropertyType != typeof(double)
-                                    && x.PropertyType != typeof(decimal)
-                                    && !x.PropertyType.IsEnum);
-
-            foreach (var classType in classTypes)
-            {
-                var classProperties = classType.PropertyType.GetProperties();
-
-                var classGenericTypes = classProperties.Where(x => x.PropertyType.IsGenericType && x.PropertyType.GetGenericTypeDefinition()
-                    == typeof(List<>));
-
-                GetListTypePropertyDetails(classGenericTypes);
-
-                foreach (var classProp in classProperties)
-                {
-                    var isNullable = classProp.PropertyType.IsGenericType &&
-                            classProp.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>);
-                    string dataType = classProp.PropertyType.Name;
-                    if (isNullable)
-                    {
-                        var dTypes = classProp.PropertyType.GetGenericArguments();
-                        var dt = classProp.PropertyType.GetGenericTypeDefinition();
-                        dataType = dTypes[0].Name;
-                    }
-                    Console.WriteLine($"Name : {classProp.Name}, DataType : {dataType}, IsNullable : {isNullable}");
-
-                }
-            }
-
+            GetTypePropertyDetails(type);
 
         }
 
-        private static void GetListTypePropertyDetails(IEnumerable<PropertyInfo> genericTypes)
+        /// <summary>
+        /// Main working function
+        /// </summary>
+        /// <param name="type"></param>
+        private static void GetTypePropertyDetails(Type type)
         {
-            foreach (var generic in genericTypes)
+            var properties = type.GetProperties();
+
+            foreach (var property in properties)
             {
-                Type[] argumentTypes = generic.PropertyType.GetGenericArguments();
-
-                foreach (var arg in argumentTypes)
+                var isNullable = property.PropertyType.IsGenericType &&
+                            property.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>);
+                string dataType = property.PropertyType.Name;
+                if (isNullable)
                 {
-                    if (arg.IsClass)
+                    var dTypes = property.PropertyType.GetGenericArguments();
+                    dataType = dTypes[0].Name;
+                }
+
+                var isClass = !property.PropertyType.IsGenericType
+                                        && property.PropertyType.IsClass
+                                        && property.PropertyType != typeof(string)
+                                        && property.PropertyType != typeof(int)
+                                        && property.PropertyType != typeof(double)
+                                        && property.PropertyType != typeof(decimal)
+                                        && !property.PropertyType.IsEnum;
+
+                if (isClass)
+                {
+                    var classType = property.PropertyType;
+                    GetTypePropertyDetails(classType);
+                }
+
+                var isList = property.PropertyType.IsGenericType &&
+                            property.PropertyType.GetGenericTypeDefinition() == typeof(List<>);
+                if (isList)
+                {
+                    var dTypes = property.PropertyType.GetGenericArguments();
+                    dataType = dTypes[0].Name;
+
+                    dataType = $"List<{dataType}>";
+
+                    Type[] argumentTypes = property.PropertyType.GetGenericArguments();
+
+                    foreach (var arg in argumentTypes)
                     {
-                        var argProperties = arg.GetProperties();
-
-                        foreach (var prop in argProperties)
+                        if (arg.IsClass)
                         {
-                            var isNullable = prop.PropertyType.IsGenericType &&
-                                    prop.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>);
-                            string dataType = prop.PropertyType.Name;
-                            if (isNullable)
-                            {
-                                var dTypes = prop.PropertyType.GetGenericArguments();
-                                var dt = prop.PropertyType.GetGenericTypeDefinition();
-                                dataType = dTypes[0].Name;
-                            }
-                            Console.WriteLine($"Name : {prop.Name}, DataType : {dataType}, IsNullable : {isNullable}");
+                            var argProperties = arg.GetProperties();
 
+                            foreach (var propType in argProperties.Select(x => x.PropertyType))
+                            {
+                                isClass = !propType.IsGenericType
+                                        && propType.IsClass
+                                        && propType != typeof(string)
+                                        && propType != typeof(int)
+                                        && propType != typeof(double)
+                                        && propType != typeof(decimal)
+                                        && !propType.IsEnum;
+
+
+                                if (isClass)
+                                {
+                                    GetTypePropertyDetails(propType);
+                                }
+
+                            }
                         }
                     }
-
-                    Console.WriteLine($"{generic.Name} is List Type {arg.Name} which {(arg.IsClass ? "can be instantiated" : "cannot be instantiated")}");
                 }
+
+                Console.WriteLine($"Name : {property.Name}, DataType : {dataType}, IsNullable : {isNullable}");
             }
         }
 
