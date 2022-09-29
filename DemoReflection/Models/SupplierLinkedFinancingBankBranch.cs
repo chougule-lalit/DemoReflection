@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,5 +30,7 @@ namespace DemoReflection.Models
         public virtual DateTime IsActiveDate { get; set; }
 
         public virtual DateTime? IsActiveNullDate { get; set; }
+
+        public JObject Json { get; set; }
     }
 }

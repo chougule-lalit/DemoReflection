@@ -1,10 +1,14 @@
 ﻿using DemoReflection.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Unicode;
 
 namespace DemoReflection
 {
@@ -12,7 +16,19 @@ namespace DemoReflection
     {
         static void Main(string[] args)
         {
-            MainMethodExampleToGetDatatypeOfPocoClass();
+            var assName = typeof(CashOutflowBankDropdownOutputDto).AssemblyQualifiedName;
+            var data = GetInstance(assName);
+
+            CreateFullInstance(data);
+            var json = JsonConvert.SerializeObject(data, Formatting.Indented);
+
+            var data1 = new ReturnObject
+            {
+               Json = JObject.Parse(json),
+                NameOfOutput = "SomeTHing else"
+            };
+
+            Console.WriteLine(JsonConvert.SerializeObject(data1, Formatting.Indented));
         }
 
         private static void MainMethodExampleToGetDatatypeOfPocoClass()
@@ -66,7 +82,7 @@ namespace DemoReflection
                 if (isArray)
                 {
                     var arrayType = property.PropertyType.GetElementType();
-                    if (arrayType != typeof(string) && arrayType != typeof(int) && arrayType != typeof(decimal) && arrayType != typeof(double) 
+                    if (arrayType != typeof(string) && arrayType != typeof(int) && arrayType != typeof(decimal) && arrayType != typeof(double)
                             && arrayType != typeof(float) && arrayType != typeof(long))
                         outputList.AddRange(GetTypePropertyDetails(arrayType));
                 }
@@ -119,8 +135,6 @@ namespace DemoReflection
                         IsNullable = isNullable
                     });
                 }
-
-                //Console.WriteLine($"Name : {property.Name}, DataType : {dataType}, IsNullable : {isNullable}");
             }
 
             return outputList;
@@ -130,17 +144,44 @@ namespace DemoReflection
         {
             if (IsGenericList(obj))
             {
-                Console.WriteLine("Only for Lists...");
+                if (obj.GetType().IsGenericType &&
+                            obj.GetType().GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    var dTypes = obj.GetType().GetGenericArguments();
+                    var dataType = dTypes[0];
+                    var innerObj = Activator.CreateInstance(dataType);
+                    CreateFullInstance(innerObj);
+                    var addMethod = obj.GetType().GetMethod("Add");
+                    addMethod.Invoke(obj, new object[] { innerObj });
+                }
             }
-            else
+            else if (!IsArrayObj(obj))
             {
-
                 PropertyInfo[] properties = obj.GetType().GetProperties();
                 foreach (var property in properties)
                 {
                     Type propertyType = property.PropertyType;
 
-                    if (property.PropertyType != typeof(string) && typeof(IEnumerable).IsAssignableFrom(property.PropertyType))
+                    if (propertyType.IsArray)
+                    {
+                        var myArr = Array.CreateInstance(propertyType.GetElementType(), 1);
+                        var innerType = propertyType.GetElementType();
+
+                        var isClass = !innerType.IsGenericType
+                                        && innerType.IsClass
+                                        && innerType != typeof(string)
+                                        && innerType != typeof(int)
+                                        && innerType != typeof(double)
+                                        && innerType != typeof(decimal)
+                                        && !innerType.IsEnum
+                                        && !innerType.IsArray;
+                        if (isClass)
+                            myArr.SetValue(Activator.CreateInstance(innerType), 0);
+                        property.SetValue(obj, myArr);
+                    }
+
+                    if (property.PropertyType.IsGenericType &&
+                            property.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
                     {
                         var typeOfListToBeCreated = propertyType.GetGenericArguments()[0];
                         if (typeOfListToBeCreated.IsClass)
@@ -189,6 +230,12 @@ namespace DemoReflection
         {
             var oType = o.GetType();
             return (oType.IsGenericType && (oType.GetGenericTypeDefinition() == typeof(List<>)));
+        }
+
+        public static bool IsArrayObj(object o)
+        {
+            var oType = o.GetType();
+            return oType.IsArray && !oType.IsGenericType;
         }
 
         public static List<ParameterObjectMetaData> GetXmlXPathExpression(System.Xml.XmlNodeList elements)
@@ -279,6 +326,23 @@ namespace DemoReflection
         {
             Type t = Type.GetType(strFullyQualifiedName);
 
+            if (t.IsArray)
+            {
+                var innerType = t.GetElementType();
+                var myArr = Array.CreateInstance(t.GetElementType(), 1);
+                var isClass = !innerType.IsGenericType
+                                          && innerType.IsClass
+                                          && innerType != typeof(string)
+                                          && innerType != typeof(int)
+                                          && innerType != typeof(double)
+                                          && innerType != typeof(decimal)
+                                          && !innerType.IsEnum
+                                          && !innerType.IsArray;
+                if (isClass)
+                    myArr.SetValue(Activator.CreateInstance(innerType), 0);
+                return myArr;
+            }
+
             if (t.FullName == "System.String")
                 return null;
 
@@ -304,5 +368,11 @@ namespace DemoReflection
             //Json to XML
             return JsonConvert.DeserializeXmlNode(json);
         }
+    }
+
+    public class ReturnObject
+    {
+        public JObject Json { get; set; }
+        public string NameOfOutput { get; set; }
     }
 }
