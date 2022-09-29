@@ -30,7 +30,5 @@ namespace DemoReflection.Models
         public virtual DateTime IsActiveDate { get; set; }
 
         public virtual DateTime? IsActiveNullDate { get; set; }
-
-        public JObject Json { get; set; }
     }
 }

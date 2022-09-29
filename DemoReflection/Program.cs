@@ -16,19 +16,48 @@ namespace DemoReflection
     {
         static void Main(string[] args)
         {
-            var assName = typeof(CashOutflowBankDropdownOutputDto).AssemblyQualifiedName;
-            var data = GetInstance(assName);
+            AllWiredUp();
+        }
 
-            CreateFullInstance(data);
-            var json = JsonConvert.SerializeObject(data, Formatting.Indented);
+        private static void AllWiredUp()
+        {
+            var assemblyQualifiedName = typeof(CashOutflowBankDropdownOutputDto).AssemblyQualifiedName;
+            var fullName = typeof(CashOutflowBankDropdownOutputDto).Name;
+            var assemblyQualifiedObj = GetInstance(assemblyQualifiedName);
+            CreateFullInstance(assemblyQualifiedObj);
 
-            var data1 = new ReturnObject
+            //Get Json string
+            var json = JsonConvert.SerializeObject(assemblyQualifiedObj, Formatting.Indented);
+
+
+            //Get Data Types
+            var type = typeof(CashOutflowBankDropdownOutputDto);
+            var parameterMetaDataTypes = GetTypePropertyDetails(type);
+
+            //Get xPathExpressions
+            var doc = GetXmlFromObject(assemblyQualifiedObj);
+            var elements = doc.DocumentElement.ChildNodes;
+            var parameterXPathExpressions = GetXmlXPathExpression(elements);
+
+            var parameterOutputList = (from a in parameterMetaDataTypes
+                                       join b in parameterXPathExpressions on a.Name equals b.Name
+                                       select new ParameterObjectMetaData
+                                       {
+                                           Name = a.Name,
+                                           DataType = a.DataType,
+                                           IsNullable = a.IsNullable,
+                                           XPath = b.XPath
+                                       }).ToList();
+
+            var data = new ReturnObject
             {
-               Json = JObject.Parse(json),
-                NameOfOutput = "SomeTHing else"
+                Json = JObject.Parse(json),
+                NameOfOutput = fullName,
+                Parameters = parameterOutputList
+
             };
 
-            Console.WriteLine(JsonConvert.SerializeObject(data1, Formatting.Indented));
+            Console.WriteLine(JsonConvert.SerializeObject(data, Formatting.Indented));
         }
 
         private static void MainMethodExampleToGetDatatypeOfPocoClass()
@@ -78,7 +107,6 @@ namespace DemoReflection
 
                 var isArray = !property.PropertyType.IsGenericType &&
                             property.PropertyType.IsArray;
-                dataType = property.PropertyType.Name;
                 if (isArray)
                 {
                     var arrayType = property.PropertyType.GetElementType();
@@ -247,7 +275,7 @@ namespace DemoReflection
                 if (item.Name != "#text")
                 {
                     var xPath = $"/{item.Name}";
-                    Console.WriteLine(xPath);
+                    //Console.WriteLine(xPath);
                     listXpathExpression.Add(new ParameterObjectMetaData
                     {
                         Name = item.Name,
@@ -265,7 +293,7 @@ namespace DemoReflection
                             if (childNode.Name != "#text")
                             {
                                 var xPath = $"/{item.Name}/{childNode.Name}";
-                                Console.WriteLine(xPath);
+                                //Console.WriteLine(xPath);
                                 listXpathExpression.Add(new ParameterObjectMetaData
                                 {
                                     Name = childNode.Name,
@@ -283,7 +311,7 @@ namespace DemoReflection
                                         if (grandChildNode.Name != "#text")
                                         {
                                             var xPath = $"/{item.Name}/{childNode.Name}/{grandChildNode.Name}";
-                                            Console.WriteLine(xPath);
+                                            //Console.WriteLine(xPath);
                                             listXpathExpression.Add(new ParameterObjectMetaData
                                             {
                                                 Name = grandChildNode.Name,
@@ -301,7 +329,7 @@ namespace DemoReflection
                                                     if (grandGrandChildNode.Name != "#text")
                                                     {
                                                         var xPath = $"/{item.Name}/{childNode.Name}/{grandChildNode.Name}/{grandGrandChildNode.Name}";
-                                                        Console.WriteLine(xPath);
+                                                        //Console.WriteLine(xPath);
                                                         listXpathExpression.Add(new ParameterObjectMetaData
                                                         {
                                                             Name = grandGrandChildNode.Name,
@@ -374,5 +402,6 @@ namespace DemoReflection
     {
         public JObject Json { get; set; }
         public string NameOfOutput { get; set; }
+        public List<ParameterObjectMetaData> Parameters { get; set; }
     }
 }
