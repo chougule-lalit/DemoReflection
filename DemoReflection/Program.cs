@@ -12,21 +12,26 @@ namespace DemoReflection
     {
         static void Main(string[] args)
         {
-            //var obj = new List<CashOutflowBankDropdownOutputDto>();
-            var obj = new List<CashOutflowBankDropdownOutputDto>();
+            MainMethodExampleToGetDatatypeOfPocoClass();
+        }
+
+        private static void MainMethodExampleToGetDatatypeOfPocoClass()
+        {
+            var obj = new CashOutflowBankDropdownOutputDto();
 
             var type = obj.GetType();
 
-            GetTypePropertyDetails(type);
-
+            Console.WriteLine(JsonConvert.SerializeObject(GetTypePropertyDetails(type), Formatting.Indented));
         }
 
         /// <summary>
         /// Main working function
         /// </summary>
         /// <param name="type"></param>
-        private static void GetTypePropertyDetails(Type type)
+        private static List<ParameterObjectMetaData> GetTypePropertyDetails(Type type)
         {
+            var outputList = new List<ParameterObjectMetaData>();
+
             var properties = type.GetProperties();
 
             foreach (var property in properties)
@@ -46,12 +51,24 @@ namespace DemoReflection
                                         && property.PropertyType != typeof(int)
                                         && property.PropertyType != typeof(double)
                                         && property.PropertyType != typeof(decimal)
-                                        && !property.PropertyType.IsEnum;
+                                        && !property.PropertyType.IsEnum
+                                        && !property.PropertyType.IsArray;
 
                 if (isClass)
                 {
                     var classType = property.PropertyType;
-                    GetTypePropertyDetails(classType);
+                    outputList.AddRange(GetTypePropertyDetails(classType));
+                }
+
+                var isArray = !property.PropertyType.IsGenericType &&
+                            property.PropertyType.IsArray;
+                dataType = property.PropertyType.Name;
+                if (isArray)
+                {
+                    var arrayType = property.PropertyType.GetElementType();
+                    if (arrayType != typeof(string) && arrayType != typeof(int) && arrayType != typeof(decimal) && arrayType != typeof(double) 
+                            && arrayType != typeof(float) && arrayType != typeof(long))
+                        outputList.AddRange(GetTypePropertyDetails(arrayType));
                 }
 
                 var isList = property.PropertyType.IsGenericType &&
@@ -84,7 +101,7 @@ namespace DemoReflection
 
                                 if (isClass)
                                 {
-                                    GetTypePropertyDetails(propType);
+                                    outputList.AddRange(GetTypePropertyDetails(propType));
                                 }
 
                             }
@@ -92,8 +109,21 @@ namespace DemoReflection
                     }
                 }
 
-                Console.WriteLine($"Name : {property.Name}, DataType : {dataType}, IsNullable : {isNullable}");
+
+                if (!outputList.Any(x => x.Name == property.Name && x.DataType == dataType))
+                {
+                    outputList.Add(new ParameterObjectMetaData
+                    {
+                        Name = property.Name,
+                        DataType = dataType,
+                        IsNullable = isNullable
+                    });
+                }
+
+                //Console.WriteLine($"Name : {property.Name}, DataType : {dataType}, IsNullable : {isNullable}");
             }
+
+            return outputList;
         }
 
         public static void CreateFullInstance(object obj)

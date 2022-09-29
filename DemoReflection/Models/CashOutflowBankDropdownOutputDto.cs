@@ -8,7 +8,10 @@ namespace DemoReflection.Models
 {
     public class CashOutflowBankDropdownOutputDto
     {
+        public ParameterObjectMetaData[] ParameterObjectMetaDataArray { get; set; }
+
         public int? IntNullableId { get; set; }
+
         public int IntId { get; set; }
 
         public Guid FinancingBankBranchId { get; set; }
@@ -27,5 +30,6 @@ namespace DemoReflection.Models
 
         public SomeThing SomeThing { get; set; }
 
+        public string[] Names { get; set; }
     }
 }
